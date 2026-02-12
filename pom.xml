@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.cloud-idaas</groupId>
+        <artifactId>idaas-parent-pom</artifactId>
+        <version>0.0.2</version>
+    </parent>
+
+    <artifactId>idaas-java-pam-client-sdk</artifactId>
+    <version>0.0.1</version>
+    <packaging>pom</packaging>
+
+    <name>idaas-java-pam-client-sdk</name>
+    <description>Alibaba Cloud IDaaS PAM CLIENT SDK PARENT POM</description>
+    <url>https://github.com/cloud-idaas/idaas-java-pam-client-sdk</url>
+
+    <licenses>
+        <license>
+            <name>The Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+    <developers>
+        <developer>
+            <name>Cloud IDaaS</name>
+            <email>cloudidaas@list.alibaba-inc.com</email>
+            <url>https://github.com/cloud-idaas</url>
+        </developer>
+    </developers>
+    <scm>
+        <url>https://github.com/cloud-idaas/idaas-java-pam-client-sdk</url>
+        <connection>https://github.com/cloud-idaas/idaas-java-pam-client-sdk.git</connection>
+        <developerConnection>https://github.com/cloud-idaas</developerConnection>
+    </scm>
+
+    <modules>
+        <module>idaas-java-pam-client</module>
+        <module>idaas-java-pam-client-example</module>
+    </modules>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.aliyun</groupId>
+                <artifactId>credentials-java</artifactId>
+                <version>1.0.2</version>
+            </dependency>
+            <dependency>
+                <groupId>com.cloud-idaas</groupId>
+                <artifactId>idaas-java-core-sdk</artifactId>
+                <version>0.0.2-beta</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.code.gson</groupId>
+                <artifactId>gson</artifactId>
+                <version>2.10.1</version>
+            </dependency>
+            <dependency>
+                <groupId>com.aliyun</groupId>
+                <artifactId>eiam_developerapi20220225</artifactId>
+                <version>1.3.0</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter</artifactId>
+                <version>5.13.3</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-core</artifactId>
+                <version>4.8.1</version>
+                <scope>test</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <contributors>
+        <contributor>
+            <properties>
+                <provider>zhifan.oyzf@alibaba-inc.com</provider>
+                <codeName>null</codeName>
+                <codeUrl>git@gitlab.alibaba-inc.com:aliyunidaas-lab/idaas-java-akless-alibabacloud-adapter.git commit:cefe799</codeUrl>
+                <description>contributors added by SCM Plugin, please don't modify it!</description>
+            </properties>
+        </contributor>
+    </contributors>
+</project>

@@ -1,0 +1,87 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.cloud-idaas</groupId>
+        <artifactId>idaas-java-pam-client-sdk</artifactId>
+        <version>0.0.1</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>idaas-java-pam-client</artifactId>
+    <packaging>jar</packaging>
+    <version>0.0.1-beta</version>
+
+    <name>idaas-java-pam-client</name>
+    <description>Alibaba Cloud IDaaS PAM CLIENT SDK</description>
+    <url>https://github.com/cloud-idaas/idaas-java-pam-client-sdk</url>
+
+    <licenses>
+        <license>
+            <name>The Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+    <developers>
+        <developer>
+            <name>Cloud IDaaS</name>
+            <email>cloudidaas@list.alibaba-inc.com</email>
+            <url>https://github.com/cloud-idaas</url>
+        </developer>
+    </developers>
+    <scm>
+        <url>https://github.com/cloud-idaas/idaas-java-pam-client-sdk</url>
+        <connection>https://github.com/cloud-idaas/idaas-java-pam-client-sdk.git</connection>
+        <developerConnection>https://github.com/cloud-idaas</developerConnection>
+    </scm>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>credentials-java</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.cloud-idaas</groupId>
+            <artifactId>idaas-java-core-sdk</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>eiam_developerapi20220225</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.4</version>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
