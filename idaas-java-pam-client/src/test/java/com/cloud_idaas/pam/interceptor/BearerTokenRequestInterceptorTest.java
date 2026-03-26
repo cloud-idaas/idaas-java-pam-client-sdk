@@ -67,6 +67,7 @@ public class BearerTokenRequestInterceptorTest {
     @Test
     void testModifyRequestWithNullHeaders() {
         when(mockCredentialProvider.getBearerToken()).thenReturn("test_token");
+        mockRequest.pathname = "/api/someMethod";
         mockRequest.headers = null;
 
         BearerTokenRequestInterceptor interceptor = new BearerTokenRequestInterceptor(mockCredentialProvider);
@@ -85,6 +86,7 @@ public class BearerTokenRequestInterceptorTest {
     void testModifyRequestWithoutAuthorizationHeader() {
         Map<String, String> headers = new HashMap<>();
         when(mockCredentialProvider.getBearerToken()).thenReturn("test_token");
+        mockRequest.pathname = "/api/someMethod";
         mockRequest.headers = headers;
 
         BearerTokenRequestInterceptor interceptor = new BearerTokenRequestInterceptor(mockCredentialProvider);
@@ -103,6 +105,7 @@ public class BearerTokenRequestInterceptorTest {
         Map<String, String> headers = new HashMap<>();
         headers.put("Authorization", "Bearer existing_token");
         when(mockCredentialProvider.getBearerToken()).thenReturn("test_token");
+        mockRequest.pathname = "/api/someMethod";
         mockRequest.headers = headers;
 
         BearerTokenRequestInterceptor interceptor = new BearerTokenRequestInterceptor(mockCredentialProvider);
