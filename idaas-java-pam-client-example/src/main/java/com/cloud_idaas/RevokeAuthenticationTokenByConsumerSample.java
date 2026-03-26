@@ -3,14 +3,16 @@ package com.cloud_idaas;
 import com.cloud_idaas.core.factory.IDaaSCredentialProviderFactory;
 import com.cloud_idaas.pam.IDaaSPamClient;
 
-/**
- * Hello world!
- */
-public class GetApiKeyExample {
+public class RevokeAuthenticationTokenByConsumerSample {
+
     public static void main(String[] args) {
+        // Initialize (automatically load configuration file)
         IDaaSCredentialProviderFactory.init();
+
+        // Create PAM Client
         IDaaSPamClient pamClient = new IDaaSPamClient();
-        String apiKey = pamClient.getApiKey("credentialIdentifier");
-        System.out.println("Api Key: " + apiKey);
+
+        // Revoke authentication token by consumer
+        pamClient.revokeAuthenticationTokenByConsumer("consumer-id", "your-token");
     }
 }

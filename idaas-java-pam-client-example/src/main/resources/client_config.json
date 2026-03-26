@@ -1,0 +1,14 @@
+{
+    "idaasInstanceId": "your-idaas-instance-id",
+    "clientId": "your-client-id",
+    "issuer": "your-idaas-issuer-url",
+    "tokenEndpoint": "your-idaas-token-endpoint",
+    "scope": "your-requested-scope",
+    "developerApiEndpoint": "your-developer-api-endpoint",
+    "authnConfiguration": {
+        "identityType": "CLIENT",
+        "authnMethod": "CLIENT_SECRET_POST",
+        "clientSecretEnvVarName": "IDAAS_CLIENT_SECRET"
+    }
+}
+
