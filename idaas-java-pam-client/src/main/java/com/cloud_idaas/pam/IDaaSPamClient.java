@@ -148,11 +148,11 @@ public class IDaaSPamClient {
         }
     }
 
-    public JwtContent generateJwtAuthenticationToken(String credentialProviderIdentifier, String subject, List<String> audiences) {
+    public JwtTokenResponse generateJwtAuthenticationToken(String credentialProviderIdentifier, String subject, List<String> audiences) {
         return generateJwtAuthenticationToken(credentialProviderIdentifier, subject, audiences, null);
     }
 
-    public JwtContent generateJwtAuthenticationToken(String credentialProviderIdentifier, String subject, List<String> audiences,
+    public JwtTokenResponse generateJwtAuthenticationToken(String credentialProviderIdentifier, String subject, List<String> audiences,
                                                      GenerateJwtAuthenticationOptions options) {
         try {
             GenerateJwtAuthenticationTokenRequest request = new GenerateJwtAuthenticationTokenRequest()
@@ -178,7 +178,13 @@ public class IDaaSPamClient {
                 GenerateJwtAuthenticationTokenResponseBody responseBody = response.getBody();
                 GenerateJwtAuthenticationTokenResponseBody.GenerateJwtAuthenticationTokenResponseBodyJwtContent jwtAuthenticationTokenContent
                         = responseBody.getJwtContent();
-                return new JwtContent(jwtAuthenticationTokenContent.getJwtValue(), jwtAuthenticationTokenContent.getDerivedShortToken());
+                JwtContent jwtContent = new JwtContent(jwtAuthenticationTokenContent.getJwtValue(), jwtAuthenticationTokenContent.getDerivedShortToken());
+                JwtTokenResponse jwtTokenResponse = new JwtTokenResponse();
+                jwtTokenResponse.setAuthenticationTokenId(responseBody.getAuthenticationTokenId());
+                jwtTokenResponse.setConsumerType(responseBody.getConsumerType());
+                jwtTokenResponse.setConsumerId(responseBody.getConsumerId());
+                jwtTokenResponse.setJwtContent(jwtContent);
+                return jwtTokenResponse;
             }
             throw new IDaaSUnexpectedException("Failed to generate JWT authentication token, status code: " + response.getStatusCode());
         } catch (TeaException e){
@@ -187,6 +193,29 @@ public class IDaaSPamClient {
             throw e;
         } catch (Exception e){
             LOGGER.error("Error occurred while generating JWT authentication token: {}", e.getMessage());
+            throw new IDaaSUnexpectedException(e.getMessage(), e);
+        }
+    }
+
+    public JwtContent obtainJwtAuthenticationToken(String consumerId, String authenticationTokenId){
+        try {
+            ObtainJwtAuthenticationTokenRequest request = new ObtainJwtAuthenticationTokenRequest()
+                    .setConsumerId(consumerId)
+                    .setAuthenticationTokenId(authenticationTokenId);
+            ObtainJwtAuthenticationTokenResponse response = this.client.obtainJwtAuthenticationToken(this.idaasInstanceId, request);
+            if (response.getStatusCode() == PamClientConstants.STATUS_CODE_200) {
+                ObtainJwtAuthenticationTokenResponseBody responseBody = response.getBody();
+                ObtainJwtAuthenticationTokenResponseBody.ObtainJwtAuthenticationTokenResponseBodyJwtContent jwtContent =
+                        responseBody.getJwtContent();
+                return new JwtContent(jwtContent.getJwtValue(), jwtContent.getDerivedShortToken());
+            }
+            throw new IDaaSUnexpectedException("Failed to obtain JWT authentication token, status code: " + response.getStatusCode());
+        } catch (TeaException e){
+            throw handleTeaException(e);
+        } catch (IDaaSUnexpectedException e) {
+            throw e;
+        } catch (Exception e){
+            LOGGER.error("Error occurred while obtaining JWT authentication token: {}", e.getMessage());
             throw new IDaaSUnexpectedException(e.getMessage(), e);
         }
     }

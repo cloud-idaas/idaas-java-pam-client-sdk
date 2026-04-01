@@ -3,6 +3,7 @@ package com.cloud_idaas;
 import com.cloud_idaas.core.factory.IDaaSCredentialProviderFactory;
 import com.cloud_idaas.pam.IDaaSPamClient;
 import com.cloud_idaas.pam.domain.JwtContent;
+import com.cloud_idaas.pam.domain.JwtTokenResponse;
 import com.cloud_idaas.pam.option.GenerateJwtAuthenticationOptions;
 
 import java.util.Arrays;
@@ -23,7 +24,7 @@ public class GenerateJwtAuthenticationTokenSample {
 
         // Generate JWT authentication token
         // Without optional parameters
-        JwtContent jwtContent = pamClient.generateJwtAuthenticationToken(
+        JwtTokenResponse jwtTokenResponse = pamClient.generateJwtAuthenticationToken(
                 "credential-provider-identifier",
                 "subject",
                 audiences
@@ -37,14 +38,17 @@ public class GenerateJwtAuthenticationTokenSample {
         //        .expiration(3600)
         //        .includeDerivedShortToken(true)
         //        .build();
-        //JwtContent jwtContent = pamClient.generateJwtAuthenticationToken(
+        //JwtTokenResponse jwtTokenResponse = pamClient.generateJwtAuthenticationToken(
         //        "credential-provider-identifier",
         //        "subject",
         //        audiences,
         //        options
         //);
 
-        System.out.println("JWT: " + jwtContent.getJwtValue());
-        System.out.println("Derived Short Token: " + jwtContent.getDerivedShortToken());
+        System.out.println("Authentication Token Id" + jwtTokenResponse.getAuthenticationTokenId());
+        System.out.println("Consumer Type: " + jwtTokenResponse.getConsumerType());
+        System.out.println("Consumer ID: " + jwtTokenResponse.getConsumerId());
+        System.out.println("JWT Token: " + jwtTokenResponse.getJwtContent().getJwtValue());
+        System.out.println("Derived Short Token: " + jwtTokenResponse.getJwtContent().getDerivedShortToken());
     }
 }

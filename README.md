@@ -24,7 +24,7 @@ Add the following dependency to your `pom.xml`:
 <dependency>
     <groupId>com.cloud-idaas</groupId>
     <artifactId>idaas-java-pam-client</artifactId>
-    <version>0.0.2-beta</version>
+    <version>0.0.3-beta</version>
 </dependency>
 ```
 [Latest Version](https://mvnrepository.com/artifact/com.cloud-idaas/idaas-java-pam-client)
@@ -94,7 +94,7 @@ Request Parameters:
 
 | **Parameter** | **Type** | **Required** | **Description**                                                    |
 | --- | --- | --- |-----------------------------------------------------------|
-| credentialIdentifier | String | Yes | The business identifier of the credential.<br>*   How to obtain: In the EIAM Console, navigate to Credentials -> Credentials, and fill in when creating a credential. |
+| credentialIdentifier | String | Yes | The business identifier of the credential.<br>*   How to obtain: In the EIAM Console, navigate to Credential -> Credential, and fill in when creating a credential. |
 
 Response:
 
@@ -110,7 +110,7 @@ Request Parameters:
 
 | **Parameter**                      | **Type** | **Required** | **Description**                                                                                                          |
 |------------------------------|--------| --- |-----------------------------------------------------------------------------------------------------------------|
-| credentialProviderIdentifier | String | Yes | The business identifier of the credential provider.<br>*   How to obtain: In the EIAM Console, navigate to Credentials -> Credential Providers, and fill in when creating a credential provider.                                              |
+| credentialProviderIdentifier | String | Yes | The business identifier of the credential provider.<br>*   How to obtain: In the EIAM Console, navigate to Credential -> Credential Provider, and fill in when creating a credential provider.                                              |
 | scope | String | No | The scope in OAuth protocol.<br>*   Multiple scopes should be separated by spaces. <br>*   Maximum length is 256 characters. <br>*   If not specified, the Scope configured when creating the credential provider will be used for the OAuth request. |
 
 Response:
@@ -128,7 +128,7 @@ Request Parameters:
 
 | **Parameter** | **Type** | **Required** | **Description**                                                                                                                                                                                                                         |
 | --- | --- | --- |------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| credentialProviderIdentifier | String | Yes | The business identifier of the credential provider.<br>*   How to obtain: In the EIAM Console, navigate to Credentials -> Credential Providers, and fill in when creating a credential provider.                                                                                                                                                             |
+| credentialProviderIdentifier | String | Yes | The business identifier of the credential provider.<br>*   How to obtain: In the EIAM Console, navigate to Credential -> Credential Provider, and fill in when creating a credential provider.                                                                                                                                                             |
 | issuer | String | No | Corresponds to the `iss` field in JWT.<br>*   If the caller wants the issued JWT to have a custom issuer, this field can be used.<br>*   If not provided, defaults to the issuer of the corresponding JWT credential provider (indicating the JWT is issued by IDaaS EIAM).<br>*   Note: If an **issuer whitelist** is configured on the credential provider, the provided issuer value will be validated against the whitelist during JWT issuance; if not in the whitelist, issuance will fail. |
 | subject | String | Yes | Corresponds to the `sub` field in JWT.                                                                                                                                                                                                         |
 | audiences | List<String> | Yes | Corresponds to the `aud` field in JWT.<br>*   Multiple audiences can be provided.<br>*   Important: Must not start with IDaaS reserved audience prefix: `urn:cloud:idaas`.                                                                                                                               |
@@ -138,11 +138,34 @@ Request Parameters:
 
 Response:
 
-| **Parameter** | **Type** | **Always Returned** | **Description**                                                                                  |
-| --- | --- | --- |-----------------------------------------------------------------------------------------|
-| jwtContent | Object | Yes | The content of the JWT authentication token.                                                                         |
-| └jwtValue | String | Yes | The JWT content.<br>*   Note: Contains sensitive information.                                                               |
-| └derivedShortToken | String | No | The derived short token of the JWT.<br>*   Note: Has the same effect as the JWT authentication token itself, used to solve the problem of JWT token length incompatibility on certain platforms.<br>*   This field itself is also a **sensitive field**. |
+| **Parameter**        | **Type** | **Always Returned** | **Description**                                                                                  |
+|----------------------| --- | --- |-----------------------------------------------------------------------------------------|
+| JwtTokenResponse     | Object | Yes | The content of the JWT authentication token response.                                                                                         |
+| └ authenticationTokenId | String | Yes | The authentication token ID.                                                                                                                              |
+| └ consumerType       | String | Yes | The consumer type of the authentication token.<br>*   Enum values: `custom` (custom type), `application` (application) |
+| └ consumerId         | String | Yes | The consumer ID of the authentication token.                                                                              |
+| └ jwtContent         | Object | Yes | The content of the JWT authentication token.                                                                         |
+| └└ jwtValue          | String | Yes | The JWT content.<br>*   Note: Contains sensitive information.                                                               |
+| └└ derivedShortToken | String | No | The derived short token of the JWT.<br>*   Note: Has the same effect as the JWT authentication token itself, used to solve the problem of JWT token length incompatibility on certain platforms.<br>*   This field itself is also a **sensitive field**. |
+
+### obtainJwtAuthenticationToken
+
+Purpose: Retrieve a JWT authentication token by consumer ID and authentication token ID.
+
+Request Parameters:
+
+| **Parameter** | **Type** | **Required** | **Description**                                                    |
+| --- | --- | --- |-----------------------------------------------------------|
+| consumerId | String | Yes | The consumer ID of the authentication token. |
+| authenticationTokenId | String | Yes | The authentication token ID. |
+
+Response:
+
+| **Parameter**       | **Type** | **Always Returned** | **Description**                   |
+|---------------------| --- | --- |------------------|
+| jwtContent          | Object | Yes | The content of the JWT authentication token.                                                                         |
+| └ jwtValue          | String | Yes | The JWT content.<br>*   Note: Contains sensitive information.                                                               |
+| └ derivedShortToken | String | No | The derived short token of the JWT.<br>*   Note: Has the same effect as the JWT authentication token itself, used to solve the problem of JWT token length incompatibility on certain platforms.<br>*   This field itself is also a **sensitive field**. |
 
 ### obtainJwtAuthenticationTokenByDerivedShortToken
 
@@ -156,11 +179,11 @@ Request Parameters:
 
 Response:
 
-| **Parameter** | **Type** | **Always Returned** | **Description**                   |
-| --- | --- | --- |------------------|
-| jwtContent | Object | Yes | The content of the JWT authentication token.                                                                         |
-| └jwtValue | String | Yes | The JWT content.<br>*   Note: Contains sensitive information.                                                               |
-| └derivedShortToken | String | No | The derived short token of the JWT.<br>*   Note: Has the same effect as the JWT authentication token itself, used to solve the problem of JWT token length incompatibility on certain platforms.<br>*   This field itself is also a **sensitive field**. |
+| **Parameter**       | **Type** | **Always Returned** | **Description**                   |
+|---------------------| --- | --- |------------------|
+| jwtContent          | Object | Yes | The content of the JWT authentication token.                                                                         |
+| └ jwtValue          | String | Yes | The JWT content.<br>*   Note: Contains sensitive information.                                                               |
+| └ derivedShortToken | String | No | The derived short token of the JWT.<br>*   Note: Has the same effect as the JWT authentication token itself, used to solve the problem of JWT token length incompatibility on certain platforms.<br>*   This field itself is also a **sensitive field**. |
 
 ### listAuthenticationTokens
 
@@ -345,7 +368,7 @@ public class GetApiKeyByTokenExchangeSample {
 }
 ```
 
-### Get OAuth Authentication Token
+### Fetch OAuth Authentication Token
 
 ```java
 import com.cloud_idaas.core.factory.IDaaSCredentialProviderFactory;
@@ -381,6 +404,7 @@ public class FetchOAuthAuthenticationTokenSample {
 import com.cloud_idaas.core.factory.IDaaSCredentialProviderFactory;
 import com.cloud_idaas.pam.IDaaSPamClient;
 import com.cloud_idaas.pam.domain.JwtContent;
+import com.cloud_idaas.pam.domain.JwtTokenResponse;
 import com.cloud_idaas.pam.option.GenerateJwtAuthenticationOptions;
 
 import java.util.Arrays;
@@ -401,7 +425,7 @@ public class GenerateJwtAuthenticationTokenSample {
 
         // Generate JWT authentication token
         // Without optional parameters
-        JwtContent jwtContent = pamClient.generateJwtAuthenticationToken(
+        JwtTokenResponse jwtTokenResponse = pamClient.generateJwtAuthenticationToken(
                 "credential-provider-identifier",
                 "subject",
                 audiences
@@ -415,12 +439,40 @@ public class GenerateJwtAuthenticationTokenSample {
         //        .expiration(3600)
         //        .includeDerivedShortToken(true)
         //        .build();
-        //JwtContent jwtContent = pamClient.generateJwtAuthenticationToken(
+        //JwtTokenResponse jwtTokenResponse = pamClient.generateJwtAuthenticationToken(
         //        "credential-provider-identifier",
         //        "subject",
         //        audiences,
         //        options
         //);
+
+        System.out.println("Authentication Token Id" + jwtTokenResponse.getAuthenticationTokenId());
+        System.out.println("Consumer Type: " + jwtTokenResponse.getConsumerType());
+        System.out.println("Consumer ID: " + jwtTokenResponse.getConsumerId());
+        System.out.println("JWT Token: " + jwtTokenResponse.getJwtContent().getJwtValue());
+        System.out.println("Derived Short Token: " + jwtTokenResponse.getJwtContent().getDerivedShortToken());
+    }
+}
+```
+
+### Obtain JWT Authentication Token
+
+```java
+import com.cloud_idaas.core.factory.IDaaSCredentialProviderFactory;
+import com.cloud_idaas.pam.IDaaSPamClient;
+import com.cloud_idaas.pam.domain.JwtContent;
+
+public class ObtainJwtAuthenticationTokenSample {
+
+    public static void main(String[] args) {
+        // Initialize (auto-load configuration file)
+        IDaaSCredentialProviderFactory.init();
+
+        // Create PAM Client
+        IDaaSPamClient pamClient = new IDaaSPamClient();
+
+        // Obtain JWT authentication token by consumer ID and authentication token ID
+        JwtContent jwtContent = pamClient.obtainJwtAuthenticationToken("your-consumer-id", "your-authentication-token-id");
 
         System.out.println("JWT: " + jwtContent.getJwtValue());
         System.out.println("Derived Short Token: " + jwtContent.getDerivedShortToken());

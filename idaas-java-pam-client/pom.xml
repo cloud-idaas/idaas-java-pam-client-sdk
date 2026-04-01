@@ -5,13 +5,13 @@
     <parent>
         <groupId>com.cloud-idaas</groupId>
         <artifactId>idaas-java-pam-client-sdk</artifactId>
-        <version>0.0.2</version>
+        <version>0.0.3</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>idaas-java-pam-client</artifactId>
     <packaging>jar</packaging>
-    <version>0.0.2-beta</version>
+    <version>0.0.3-beta</version>
 
     <name>idaas-java-pam-client</name>
     <description>Alibaba Cloud IDaaS PAM CLIENT SDK</description>

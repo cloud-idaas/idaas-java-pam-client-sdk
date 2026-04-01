@@ -24,7 +24,7 @@
 <dependency>
     <groupId>com.cloud-idaas</groupId>
     <artifactId>idaas-java-pam-client</artifactId>
-    <version>0.0.2-beta</version>
+    <version>0.0.3-beta</version>
 </dependency>
 ```
 [最新版本](https://mvnrepository.com/artifact/com.cloud-idaas/idaas-java-pam-client)
@@ -138,11 +138,34 @@ public class Sample {
 
 响应：
 
-| **参数名** | **类型** | **是否一定返回** | **描述**                                                                                  |
-| --- | --- | --- |-----------------------------------------------------------------------------------------|
-| jwtContent | Object | 是 | JWT 类型的认证令牌的内容。                                                                         |
-| └jwtValue | String | 是 | JWT 内容。<br>*   注意包含有敏感信息。                                                               |
-| └derivedShortToken | String | 否 | JWT 的派生短令牌。<br>*   注意效力等同于 JWT 认证令牌本身，用于解决 JWT 认证令牌长度过长在某些平台上无法兼容的问题。<br>*   该字段本身也是一个**敏感字段**。 |
+| **参数名**              | **类型** | **是否一定返回** | **描述**                                                                                  |
+|----------------------|--------| --- |-----------------------------------------------------------------------------------------|
+| JwtTokenResponse     | Object | 是 | JWT 认证令牌响应内容。                                                                         |
+| └ authenticationTokenId | String | 是 | 认证令牌ID。                                                                                       |
+| └ consumerType       | String | 是 | 认证令牌的使用者类型。<br>*   枚举值：`custom（自定义类型）、application（应用）`                                    |
+| └ consumerId         | String | 是 | 认证令牌的使用者ID。                                                                              |
+| └ jwtContent         | Object | 是 | JWT 类型的认证令牌的内容。                                                                         |
+| └└ jwtValue          | String | 是 | JWT 内容。<br>*   注意包含有敏感信息。                                                               |
+| └└ derivedShortToken | String | 否 | JWT 的派生短令牌。<br>*   注意效力等同于 JWT 认证令牌本身，用于解决 JWT 认证令牌长度过长在某些平台上无法兼容的问题。<br>*   该字段本身也是一个**敏感字段**。 |
+
+### obtainJwtAuthenticationToken
+
+作用：通过使用者 ID 和认证令牌 ID 获取 JWT 认证令牌。
+
+请求入参：
+
+| **参数名** | **类型** | **是否必填** | **描述**                                                    |
+| --- | --- | --- |-----------------------------------------------------------|
+| consumerId | String | 是 | 认证令牌的使用者ID。 |
+| authenticationTokenId | String | 是 | 认证令牌ID。 |
+
+响应：
+
+| **参数名**             | **类型** | **是否一定返回** | **描述**                   |
+|---------------------| --- | --- |------------------|
+| jwtContent          | Object | 是 | JWT 类型的认证令牌的内容。                                                                         |
+| └ jwtValue          | String | 是 | JWT 内容。<br>*   注意包含有敏感信息。                                                               |
+| └ derivedShortToken | String | 否 | JWT 的派生短令牌。<br>*   注意效力等同于 JWT 认证令牌本身，用于解决 JWT 认证令牌长度过长在某些平台上无法兼容的问题。<br>*   该字段本身也是一个**敏感字段**。 |
 
 ### obtainJwtAuthenticationTokenByDerivedShortToken
 
@@ -156,11 +179,11 @@ public class Sample {
 
 响应：
 
-| **参数名** | **类型** | **是否一定返回** | **描述**                   |
-| --- | --- | --- |------------------|
-| jwtContent | Object | 是 | JWT 类型的认证令牌的内容。                                                                         |
-| └jwtValue | String | 是 | JWT 内容。<br>*   注意包含有敏感信息。                                                               |
-| └derivedShortToken | String | 否 | JWT 的派生短令牌。<br>*   注意效力等同于 JWT 认证令牌本身，用于解决 JWT 认证令牌长度过长在某些平台上无法兼容的问题。<br>*   该字段本身也是一个**敏感字段**。 |
+| **参数名**             | **类型** | **是否一定返回** | **描述**                   |
+|---------------------| --- | --- |------------------|
+| jwtContent          | Object | 是 | JWT 类型的认证令牌的内容。                                                                         |
+| └ jwtValue          | String | 是 | JWT 内容。<br>*   注意包含有敏感信息。                                                               |
+| └ derivedShortToken | String | 否 | JWT 的派生短令牌。<br>*   注意效力等同于 JWT 认证令牌本身，用于解决 JWT 认证令牌长度过长在某些平台上无法兼容的问题。<br>*   该字段本身也是一个**敏感字段**。 |
 
 ### listAuthenticationTokens
 
@@ -381,6 +404,7 @@ public class FetchOAuthAuthenticationTokenSample {
 import com.cloud_idaas.core.factory.IDaaSCredentialProviderFactory;
 import com.cloud_idaas.pam.IDaaSPamClient;
 import com.cloud_idaas.pam.domain.JwtContent;
+import com.cloud_idaas.pam.domain.JwtTokenResponse;
 import com.cloud_idaas.pam.option.GenerateJwtAuthenticationOptions;
 
 import java.util.Arrays;
@@ -398,29 +422,58 @@ public class GenerateJwtAuthenticationTokenSample {
         IDaaSPamClient pamClient = new IDaaSPamClient();
 
         List<String> audiences = Arrays.asList("audience1", "audience2");
-        Map<String, Object> customClaims = new HashMap<>();
-        customClaims.put("key", "value");
 
         // 生成 JWT 认证令牌
         // 不带可选参数
-        JwtContent jwtContent = pamClient.generateJwtAuthenticationToken(
+        JwtTokenResponse jwtTokenResponse = pamClient.generateJwtAuthenticationToken(
                 "credential-provider-identifier",
                 "subject",
                 audiences
         );
         // 带可选参数
+        //Map<String, Object> customClaims = new HashMap<>();
+        //customClaims.put("key", "value");
         //GenerateJwtAuthenticationOptions options = GenerateJwtAuthenticationOptions.builder()
         //        .issuer("issuer")
         //        .customClaims(customClaims)
         //        .expiration(3600)
         //        .includeDerivedShortToken(true)
         //        .build();
-        //JwtContent jwtContent = pamClient.generateJwtAuthenticationToken(
+        //JwtTokenResponse jwtTokenResponse = pamClient.generateJwtAuthenticationToken(
         //        "credential-provider-identifier",
         //        "subject",
         //        audiences,
         //        options
         //);
+
+        System.out.println("Authentication Token Id" + jwtTokenResponse.getAuthenticationTokenId());
+        System.out.println("Consumer Type: " + jwtTokenResponse.getConsumerType());
+        System.out.println("Consumer ID: " + jwtTokenResponse.getConsumerId());
+        System.out.println("JWT Token: " + jwtTokenResponse.getJwtContent().getJwtValue());
+        System.out.println("Derived Short Token: " + jwtTokenResponse.getJwtContent().getDerivedShortToken());
+    }
+}
+
+```
+
+### 获取 JWT 认证令牌
+
+```java
+import com.cloud_idaas.core.factory.IDaaSCredentialProviderFactory;
+import com.cloud_idaas.pam.IDaaSPamClient;
+import com.cloud_idaas.pam.domain.JwtContent;
+
+public class ObtainJwtAuthenticationTokenSample {
+
+    public static void main(String[] args) {
+        // 初始化（自动加载配置文件）
+        IDaaSCredentialProviderFactory.init();
+
+        // 创建 PAM Client
+        IDaaSPamClient pamClient = new IDaaSPamClient();
+
+        // 通过使用者 ID 和认证令牌 ID 获取 JWT 认证令牌
+        JwtContent jwtContent = pamClient.obtainJwtAuthenticationToken("your-consumer-id", "your-authentication-token-id");
 
         System.out.println("JWT: " + jwtContent.getJwtValue());
         System.out.println("Derived Short Token: " + jwtContent.getDerivedShortToken());

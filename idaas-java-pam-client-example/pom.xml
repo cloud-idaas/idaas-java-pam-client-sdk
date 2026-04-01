@@ -4,7 +4,7 @@
 
     <groupId>com.cloud-idaas</groupId>
     <artifactId>idaas-java-pam-client-example</artifactId>
-    <version>0.0.2</version>
+    <version>0.0.3</version>
     <packaging>jar</packaging>
 
     <name>idaas-java-pam-client-example</name>
@@ -20,7 +20,7 @@
         <dependency>
             <groupId>com.cloud-idaas</groupId>
             <artifactId>idaas-java-pam-client</artifactId>
-            <version>0.0.2-beta</version>
+            <version>0.0.3-beta</version>
         </dependency>
     </dependencies>
 </project>
