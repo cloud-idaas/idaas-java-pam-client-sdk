@@ -10,7 +10,10 @@ public class ReinstateAuthenticationTokenOptions implements Serializable {
 
     private static final long serialVersionUID = 9181705101063767274L;
 
-    private final String tokenTypeHint;
+    private String tokenTypeHint;
+
+    public ReinstateAuthenticationTokenOptions() {
+    }
 
     private ReinstateAuthenticationTokenOptions(Builder builder) {
         this.tokenTypeHint = builder.tokenTypeHint;
@@ -23,6 +26,15 @@ public class ReinstateAuthenticationTokenOptions implements Serializable {
      */
     public String getTokenTypeHint() {
         return tokenTypeHint;
+    }
+
+    /**
+     * Sets the token type hint.
+     *
+     * @param tokenTypeHint the token type hint
+     */
+    public void setTokenTypeHint(String tokenTypeHint) {
+        this.tokenTypeHint = tokenTypeHint;
     }
 
     /**

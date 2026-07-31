@@ -4,14 +4,13 @@
 
     <parent>
         <groupId>com.cloud-idaas</groupId>
-        <artifactId>idaas-java-pam-client-sdk</artifactId>
-        <version>0.0.3</version>
-        <relativePath>../pom.xml</relativePath>
+        <artifactId>idaas-parent-pom</artifactId>
+        <version>0.0.2</version>
     </parent>
 
     <artifactId>idaas-java-pam-client</artifactId>
     <packaging>jar</packaging>
-    <version>0.0.3-beta</version>
+    <version>0.0.4-beta</version>
 
     <name>idaas-java-pam-client</name>
     <description>Alibaba Cloud IDaaS PAM CLIENT SDK</description>
@@ -36,10 +35,6 @@
         <developerConnection>https://github.com/cloud-idaas</developerConnection>
     </scm>
 
-    <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>com.aliyun</groupId>
@@ -48,6 +43,7 @@
         <dependency>
             <groupId>com.cloud-idaas</groupId>
             <artifactId>idaas-java-core-sdk</artifactId>
+            <version>0.0.6-beta</version>
         </dependency>
         <dependency>
             <groupId>com.google.code.gson</groupId>
@@ -56,6 +52,7 @@
         <dependency>
             <groupId>com.aliyun</groupId>
             <artifactId>eiam_developerapi20220225</artifactId>
+            <version>1.8.0</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>

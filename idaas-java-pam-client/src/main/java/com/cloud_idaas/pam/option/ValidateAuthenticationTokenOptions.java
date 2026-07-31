@@ -11,7 +11,10 @@ public class ValidateAuthenticationTokenOptions implements Serializable {
 
     private static final long serialVersionUID = 2428615710709901367L;
 
-    private final String tokenTypeHint;
+    private String tokenTypeHint;
+
+    public ValidateAuthenticationTokenOptions() {
+    }
 
     private ValidateAuthenticationTokenOptions(Builder builder) {
         this.tokenTypeHint = builder.tokenTypeHint;
@@ -24,6 +27,15 @@ public class ValidateAuthenticationTokenOptions implements Serializable {
      */
     public String getTokenTypeHint() {
         return tokenTypeHint;
+    }
+
+    /**
+     * Sets the token type hint.
+     *
+     * @param tokenTypeHint the token type hint
+     */
+    public void setTokenTypeHint(String tokenTypeHint) {
+        this.tokenTypeHint = tokenTypeHint;
     }
 
     /**

@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 public class IDaaSPamClient {
 
@@ -117,10 +118,28 @@ public class IDaaSPamClient {
         }
     }
 
+    /**
+     * Fetches an OAuth authentication token (2LO / client_credentials flow).
+     *
+     * @deprecated Use {@link #fetchOAuthAuthenticationTokenV2(String, String)} instead,
+     * which returns a rich {@link OAuthAuthenticationTokenResponse} and covers both the
+     * 2LO and 3LO flows. This method is kept for backward compatibility and returns only
+     * the access token value string.
+     */
+    @Deprecated
     public String fetchOAuthAuthenticationToken(String credentialIdentifier){
         return fetchOAuthAuthenticationToken(credentialIdentifier, null);
     }
 
+    /**
+     * Fetches an OAuth authentication token (2LO / client_credentials flow).
+     *
+     * @deprecated Use {@link #fetchOAuthAuthenticationTokenV2(String, String, FetchOAuthAuthenticationOptions)}
+     * instead, which returns a rich {@link OAuthAuthenticationTokenResponse} and covers both
+     * the 2LO and 3LO flows. This method is kept for backward compatibility and returns only
+     * the access token value string.
+     */
+    @Deprecated
     public String fetchOAuthAuthenticationToken(String credentialIdentifier, FetchOAuthAuthenticationOptions options) {
         try {
             FetchOAuthAuthenticationTokenRequest request = new FetchOAuthAuthenticationTokenRequest()
@@ -146,6 +165,263 @@ public class IDaaSPamClient {
             LOGGER.error("Error occurred while obtaining credential: {}", e.getMessage());
             throw new IDaaSUnexpectedException(e.getMessage(), e);
         }
+    }
+
+    /**
+     * Fetches an OAuth authentication token, covering both the 2LO (m2m) and 3LO
+     * (user_federation) flows. Returns a rich {@link OAuthAuthenticationTokenResponse}
+     * that contains either an available access token or an authorization session that
+     * requires user interaction.
+     *
+     * @param credentialProviderIdentifier the credential provider identifier
+     * @param authorizationFlow             the authorization flow, one of
+     *                                      {@link OAuthAuthorizationFlow#M2M} or
+     *                                      {@link OAuthAuthorizationFlow#USER_FEDERATION};
+     *                                      used only for SDK-side validation and NOT sent to the server
+     * @return the OAuth authentication token response
+     */
+    public OAuthAuthenticationTokenResponse fetchOAuthAuthenticationTokenV2(String credentialProviderIdentifier, String authorizationFlow) {
+        return fetchOAuthAuthenticationTokenV2(credentialProviderIdentifier, authorizationFlow, null);
+    }
+
+    /**
+     * Fetches an OAuth authentication token with optional parameters, covering both the
+     * 2LO (m2m) and 3LO (user_federation) flows.
+     *
+     * @param credentialProviderIdentifier the credential provider identifier
+     * @param authorizationFlow             the authorization flow, one of
+     *                                      {@link OAuthAuthorizationFlow#M2M} or
+     *                                      {@link OAuthAuthorizationFlow#USER_FEDERATION}
+     * @param options                       optional parameters (scope / forceAuthentication / customParameters)
+     * @return the OAuth authentication token response
+     */
+    public OAuthAuthenticationTokenResponse fetchOAuthAuthenticationTokenV2(String credentialProviderIdentifier, String authorizationFlow,
+                                                                            FetchOAuthAuthenticationOptions options) {
+        if (!OAuthAuthorizationFlow.M2M.equals(authorizationFlow)
+                && !OAuthAuthorizationFlow.USER_FEDERATION.equals(authorizationFlow)) {
+            throw new ClientException("invalid_authorization_flow",
+                    "authorizationFlow must be either 'm2m' or 'user_federation'");
+        }
+        try {
+            FetchOAuthAuthenticationTokenRequest request = new FetchOAuthAuthenticationTokenRequest()
+                    .setCredentialProviderIdentifier(credentialProviderIdentifier);
+            if (options != null) {
+                if (options.getScope() != null) {
+                    request.setScope(options.getScope());
+                }
+                if (options.getForceAuthentication() != null) {
+                    request.setForceAuthentication(options.getForceAuthentication());
+                }
+                if (options.getCustomParameters() != null) {
+                    request.setCustomParameters(options.getCustomParameters());
+                }
+            }
+            FetchOAuthAuthenticationTokenResponse response = this.client.fetchOAuthAuthenticationToken(this.idaasInstanceId, request);
+            if (response.getStatusCode() == PamClientConstants.STATUS_CODE_200) {
+                OAuthAuthenticationTokenResponse result = convertOAuthAuthenticationTokenResponse(response.getBody());
+                if (OAuthAuthorizationFlow.M2M.equals(authorizationFlow) && result.hasOAuthAuthorizationSession()) {
+                    throw new ClientException("authorization_flow_mismatch",
+                            "authorizationFlow 'm2m' does not match the CredentialProvider configuration, "
+                                    + "which requires user authorization (user_federation)");
+                }
+                LOGGER.info("Fetched OAuth authentication token, hasAccessToken={}, hasAuthorizationSession={}",
+                        result.hasOAuthAccessTokenContent(), result.hasOAuthAuthorizationSession());
+                return result;
+            }
+            throw new IDaaSUnexpectedException("Failed to fetch OAuth authentication token, status code: " + response.getStatusCode());
+        } catch (TeaException e) {
+            throw handleTeaException(e);
+        } catch (ClientException | IDaaSUnexpectedException e) {
+            throw e;
+        } catch (Exception e) {
+            LOGGER.error("Error occurred while fetching OAuth authentication token: {}", e.getMessage());
+            throw new IDaaSUnexpectedException(e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Queries an OAuth authorization session by its session URI.
+     *
+     * @param sessionUri the authorization session URI
+     * @return the authorization session response
+     */
+    public OAuthAuthorizationSessionResponse getOAuthAuthorizationSession(String sessionUri) {
+        try {
+            GetOAuthAuthorizationSessionRequest request = new GetOAuthAuthorizationSessionRequest()
+                    .setSessionUri(sessionUri);
+            GetOAuthAuthorizationSessionResponse response = this.client.getOAuthAuthorizationSession(this.idaasInstanceId, request);
+            if (response.getStatusCode() == PamClientConstants.STATUS_CODE_200) {
+                OAuthAuthorizationSessionResponse result = convertOAuthAuthorizationSessionResponse(response.getBody());
+                LOGGER.info("Queried OAuth authorization session, sessionStatus={}", result.getSessionStatus());
+                return result;
+            }
+            throw new IDaaSUnexpectedException("Failed to get OAuth authorization session, status code: " + response.getStatusCode());
+        } catch (TeaException e) {
+            throw handleTeaException(e);
+        } catch (IDaaSUnexpectedException e) {
+            throw e;
+        } catch (Exception e) {
+            LOGGER.error("Error occurred while getting OAuth authorization session: {}", e.getMessage());
+            throw new IDaaSUnexpectedException(e.getMessage(), e);
+        }
+    }
+
+    /**
+     * End-to-end 3LO helper: initiates authorization, notifies the caller of the
+     * authorization URL, polls the session until completion, and finally returns a
+     * response containing an available access token. This method blocks the calling
+     * thread for up to 180 seconds.
+     *
+     * @param credentialProviderIdentifier the credential provider identifier
+     * @param onAuthorizationUrl           callback invoked with the authorization URL when user
+     *                                     authorization is required; exceptions thrown inside the
+     *                                     callback are propagated as-is
+     * @return a response that always contains {@code oauthAccessTokenContent}
+     */
+    public OAuthAuthenticationTokenResponse pollOAuthAuthenticationToken(String credentialProviderIdentifier, Consumer<String> onAuthorizationUrl) {
+        return pollOAuthAuthenticationToken(credentialProviderIdentifier, onAuthorizationUrl, null);
+    }
+
+    /**
+     * End-to-end 3LO helper with optional polling parameters.
+     *
+     * @param credentialProviderIdentifier the credential provider identifier
+     * @param onAuthorizationUrl           callback invoked with the authorization URL when user
+     *                                     authorization is required
+     * @param options                      optional parameters (scope / forceAuthentication /
+     *                                     customParameters / maxPollingRetries)
+     * @return a response that always contains {@code oauthAccessTokenContent}
+     */
+    public OAuthAuthenticationTokenResponse pollOAuthAuthenticationToken(String credentialProviderIdentifier, Consumer<String> onAuthorizationUrl,
+                                                                         PollOAuthAuthenticationTokenOptions options) {
+        FetchOAuthAuthenticationOptions.Builder fetchOptionsBuilder = FetchOAuthAuthenticationOptions.builder();
+        int maxPollingRetries = PamClientConstants.DEFAULT_MAX_POLLING_RETRIES;
+        if (options != null) {
+            if (options.getScope() != null) {
+                fetchOptionsBuilder.scope(options.getScope());
+            }
+            if (options.getForceAuthentication() != null) {
+                fetchOptionsBuilder.forceAuthentication(options.getForceAuthentication());
+            }
+            if (options.getCustomParameters() != null) {
+                fetchOptionsBuilder.customParameters(options.getCustomParameters());
+            }
+            if (options.getMaxPollingRetries() != null) {
+                maxPollingRetries = options.getMaxPollingRetries();
+            }
+        }
+
+        OAuthAuthenticationTokenResponse initial = fetchOAuthAuthenticationTokenV2(
+                credentialProviderIdentifier, OAuthAuthorizationFlow.USER_FEDERATION, fetchOptionsBuilder.build());
+        if (initial.hasOAuthAccessTokenContent()) {
+            return initial;
+        }
+
+        OAuthAuthorizationSession session = initial.getOauthAuthorizationSession();
+        if (session == null || session.getSessionUri() == null) {
+            throw new IDaaSUnexpectedException("Authorization session is missing from the fetch response");
+        }
+        onAuthorizationUrl.accept(session.getAuthorizationUrl());
+
+        String sessionUri = session.getSessionUri();
+        long deadline = currentTimeMillis() + PamClientConstants.MAX_POLLING_DURATION_MILLIS;
+        for (int attempt = 0; attempt < maxPollingRetries; attempt++) {
+            if (currentTimeMillis() + PamClientConstants.POLLING_INTERVAL_MILLIS > deadline) {
+                throw new ClientException("polling_timeout",
+                        "Polling for OAuth authorization timed out after "
+                                + (PamClientConstants.MAX_POLLING_DURATION_MILLIS / 1000) + " seconds");
+            }
+            try {
+                sleepBetweenPolls(PamClientConstants.POLLING_INTERVAL_MILLIS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IDaaSUnexpectedException("Polling for OAuth authorization was interrupted", e);
+            }
+            OAuthAuthorizationSessionResponse sessionResponse = getOAuthAuthorizationSession(sessionUri);
+            String status = sessionResponse.getSessionStatus();
+            if (PamClientConstants.SESSION_STATUS_COMPLETED.equals(status)) {
+                FetchOAuthAuthenticationOptions fetchOptions = new FetchOAuthAuthenticationOptions();
+                if (options != null) {
+                    if (options.getScope() != null) {
+                        fetchOptions.setScope(options.getScope());
+                    }
+                    if (options.getCustomParameters() != null) {
+                        fetchOptions.setCustomParameters(options.getCustomParameters());
+                    }
+                }
+                OAuthAuthenticationTokenResponse finalResponse = fetchOAuthAuthenticationTokenV2(
+                        credentialProviderIdentifier, OAuthAuthorizationFlow.USER_FEDERATION, fetchOptions);
+                if (!finalResponse.hasOAuthAccessTokenContent()) {
+                    throw new IDaaSUnexpectedException("Authorization session completed but no access token was returned");
+                }
+                return finalResponse;
+            } else if (PamClientConstants.SESSION_STATUS_FAILED.equals(status)) {
+                throw new ClientException(
+                        sessionResponse.getErrorCode() != null ? sessionResponse.getErrorCode() : "authorization_failed",
+                        sessionResponse.getErrorDescription() != null ? sessionResponse.getErrorDescription()
+                                : "OAuth authorization failed");
+            } else if (PamClientConstants.SESSION_STATUS_EXPIRED.equals(status)) {
+                throw new ClientException("authorization_session_expired", "The OAuth authorization session has expired");
+            }
+            // pending / callback_received -> continue polling
+        }
+        throw new ClientException("polling_timeout",
+                "Polling for OAuth authorization timed out after " + maxPollingRetries + " retries");
+    }
+
+    private OAuthAuthenticationTokenResponse convertOAuthAuthenticationTokenResponse(FetchOAuthAuthenticationTokenResponseBody body) {
+        OAuthAuthenticationTokenResponse result = new OAuthAuthenticationTokenResponse();
+        result.setAuthenticationTokenId(body.getAuthenticationTokenId());
+        result.setAuthenticationTokenType(body.getAuthenticationTokenType());
+        result.setConsumerId(body.getConsumerId());
+        result.setConsumerType(body.getConsumerType());
+        result.setCreateTime(body.getCreateTime());
+        result.setCreatorId(body.getCreatorId());
+        result.setCreatorType(body.getCreatorType());
+        result.setCredentialProviderId(body.getCredentialProviderId());
+        result.setExpirationTime(body.getExpirationTime());
+        result.setInstanceId(body.getInstanceId());
+        result.setRevoked(body.getRevoked());
+        result.setUpdateTime(body.getUpdateTime());
+        FetchOAuthAuthenticationTokenResponseBody.FetchOAuthAuthenticationTokenResponseBodyOauthAccessTokenContent accessTokenContent
+                = body.getOauthAccessTokenContent();
+        if (accessTokenContent != null) {
+            OAuthAccessTokenContent content = new OAuthAccessTokenContent();
+            content.setAccessTokenValue(accessTokenContent.getAccessTokenValue());
+            content.setTokenType(accessTokenContent.getTokenType());
+            content.setScope(accessTokenContent.getScope());
+            result.setOauthAccessTokenContent(content);
+        }
+        FetchOAuthAuthenticationTokenResponseBody.FetchOAuthAuthenticationTokenResponseBodyOauthAuthorizationSession authorizationSession
+                = body.getOauthAuthorizationSession();
+        if (authorizationSession != null) {
+            OAuthAuthorizationSession session = new OAuthAuthorizationSession();
+            session.setSessionId(authorizationSession.getSessionId());
+            session.setSessionUri(authorizationSession.getSessionUri());
+            session.setAuthorizationUrl(authorizationSession.getAuthorizationUrl());
+            session.setSessionStatus(authorizationSession.getSessionStatus());
+            result.setOauthAuthorizationSession(session);
+        }
+        return result;
+    }
+
+    private OAuthAuthorizationSessionResponse convertOAuthAuthorizationSessionResponse(GetOAuthAuthorizationSessionResponseBody body) {
+        OAuthAuthorizationSessionResponse result = new OAuthAuthorizationSessionResponse();
+        result.setInstanceId(body.getInstanceId());
+        result.setSessionId(body.getSessionId());
+        result.setSessionUri(body.getSessionUri());
+        result.setSessionStatus(body.getSessionStatus());
+        result.setCredentialProviderIdentifier(body.getCredentialProviderIdentifier());
+        result.setConsumerType(body.getConsumerType());
+        result.setConsumerId(body.getConsumerId());
+        result.setCreatorType(body.getCreatorType());
+        result.setCreatorId(body.getCreatorId());
+        result.setAuthorizationUrl(body.getAuthorizationUrl());
+        result.setExpirationTime(body.getExpirationTime());
+        result.setAuthenticationTokenId(body.getAuthenticationTokenId());
+        result.setErrorCode(body.getErrorCode());
+        result.setErrorDescription(body.getErrorDescription());
+        return result;
     }
 
     public JwtTokenResponse generateJwtAuthenticationToken(String credentialProviderIdentifier, String subject, List<String> audiences) {
@@ -412,6 +688,20 @@ public class IDaaSPamClient {
             LOGGER.error("Error occurred while revoking authentication token by consumer: {}", e.getMessage());
             throw new IDaaSUnexpectedException(e.getMessage(), e);
         }
+    }
+
+    /**
+     * Returns the current time in milliseconds. Extracted for testability.
+     */
+    protected long currentTimeMillis() {
+        return System.currentTimeMillis();
+    }
+
+    /**
+     * Sleeps for the given number of milliseconds between polls. Extracted for testability.
+     */
+    protected void sleepBetweenPolls(long millis) throws InterruptedException {
+        Thread.sleep(millis);
     }
 
     private RuntimeException handleTeaException(TeaException e) {

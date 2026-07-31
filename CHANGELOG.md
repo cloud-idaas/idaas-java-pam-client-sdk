@@ -1,3 +1,10 @@
+0.0.4-beta:
+support:
+- FetchOAuthAuthenticationTokenV2 (OAuth 2LO / 3LO)
+- GetOAuthAuthorizationSession
+- PollOAuthAuthenticationToken
+  deprecated:
+- FetchOAuthAuthenticationToken (use FetchOAuthAuthenticationTokenV2 instead)
 0.0.3-beta:
 support:
 - ObtainJwtAuthenticationToken

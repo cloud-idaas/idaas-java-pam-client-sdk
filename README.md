@@ -9,6 +9,7 @@
 ## Features
 
 - **Credential Management**: Support for retrieving API Keys, OAuth authentication tokens, JWT authentication tokens, and other credentials
+- **OAuth 2LO / 3LO**: Support for M2M (client credentials) and user federation (authorization code) flows, with end-to-end 3LO authorization orchestration
 - **Authentication Token Lifecycle Management**: Support for generating, querying, revoking, reinstating, and validating authentication tokens
 
 ## Requirements
@@ -24,7 +25,7 @@ Add the following dependency to your `pom.xml`:
 <dependency>
     <groupId>com.cloud-idaas</groupId>
     <artifactId>idaas-java-pam-client</artifactId>
-    <version>0.0.3-beta</version>
+    <version>0.0.4-beta</version>
 </dependency>
 ```
 [Latest Version](https://mvnrepository.com/artifact/com.cloud-idaas/idaas-java-pam-client)
@@ -104,6 +105,8 @@ Response:
 
 ### fetchOAuthAuthenticationToken
 
+> **Deprecated**: Use [fetchOAuthAuthenticationTokenV2](#fetchoauthauthenticationtokenv2) instead. This method only supports 2LO and returns the access token string; its signature and return type remain unchanged for backward compatibility.
+
 Purpose: Retrieve a valid OAuth authentication token.
 
 Request Parameters:
@@ -118,6 +121,101 @@ Response:
 | **Parameter** | **Type** | **Always Returned** | **Description**                                                        |
 | --- | --- | --- |---------------------------------------------------------------|
 | accessTokenValue | String | Yes | Corresponds to the access_token in the OAuth AccessToken response.<br>*   Note: Contains sensitive information. |
+
+
+### fetchOAuthAuthenticationTokenV2
+
+Purpose: Retrieve a valid OAuth authentication token, covering both the 2LO (m2m) and 3LO (user_federation) flows. Recommended replacement for `fetchOAuthAuthenticationToken`.
+
+Request Parameters:
+
+| **Parameter** | **Type** | **Required** | **Description** |
+| --- | --- | --- | --- |
+| credentialProviderIdentifier | String | Yes | The business identifier of the credential provider. |
+| authorizationFlow | String | Yes | The authorization flow, either `OAuthAuthorizationFlow.M2M` (`m2m`) or `OAuthAuthorizationFlow.USER_FEDERATION` (`user_federation`).<br>*   Used only for SDK-side validation, NOT sent to the server. |
+| scope | String | No | The scope in OAuth protocol (via `FetchOAuthAuthenticationOptions`). |
+| forceAuthentication | Boolean | No | Whether to force re-authorization, ignoring any existing valid token (via `FetchOAuthAuthenticationOptions`). |
+| customParameters | Map<String, String> | No | Custom parameters appended to the OAuth authorization URL query parameters (via `FetchOAuthAuthenticationOptions`). |
+
+Response:
+
+| **Parameter** | **Type** | **Always Returned** | **Description** |
+| --- | --- | --- | --- |
+| oAuthAuthenticationTokenResponse | Object | Yes | The OAuth authentication token response. `oauthAccessTokenContent` and `oauthAuthorizationSession` are mutually exclusive; check with `hasOAuthAccessTokenContent()` / `hasOAuthAuthorizationSession()`. |
+| └ instanceId | String | No | The IDaaS instance ID. |
+| └ authenticationTokenId | String | No | The authentication token ID. |
+| └ authenticationTokenType | String | No | The authentication token type.<br>*   Enum: `oauth_access_token`. |
+| └ credentialProviderId | String | No | The credential provider identifier. |
+| └ consumerType | String | No | The consumer type of the authentication token.<br>*   Enum: `custom, application` |
+| └ consumerId | String | No | The consumer ID of the authentication token. |
+| └ creatorType | String | No | The creator type of the authentication token.<br>*   Enum: `application` |
+| └ creatorId | String | No | The creator ID of the authentication token. |
+| └ createTime | Long | No | The creation time of the authentication token, as a Unix timestamp. |
+| └ updateTime | Long | No | The update time of the authentication token, as a Unix timestamp. |
+| └ expirationTime | Long | No | The expiration time of the authentication token, as a Unix timestamp. |
+| └ revoked | Boolean | No | Whether the authentication token has been revoked. |
+| └ oauthAccessTokenContent | Object | No | The OAuth access token content. Present when a valid token is available. |
+| └└ accessTokenValue | String | Yes | Corresponds to the access_token in the OAuth AccessToken response.<br>*   Note: Contains sensitive information. |
+| └└ tokenType | String | Yes | The token type, usually `Bearer`. |
+| └└ scope | String | No | The authorized scope. |
+| └ oauthAuthorizationSession | Object | No | The OAuth authorization session info. Present when user authorization is required (3LO). |
+| └└ sessionId | String | Yes | The authorization session ID. |
+| └└ sessionUri | String | Yes | The authorization session URI, in the format `urn:ietf:params:oauth:request_uri:{sessionId}`. |
+| └└ authorizationUrl | String | Yes | The URL the end user must open in a browser to complete authorization. |
+| └└ sessionStatus | String | Yes | The authorization session status, e.g. `pending`. |
+
+### getOAuthAuthorizationSession
+
+Purpose: Query the status of an OAuth authorization session (3LO flow).
+
+Request Parameters:
+
+| **Parameter** | **Type** | **Required** | **Description** |
+| --- | --- | --- | --- |
+| sessionUri | String | Yes | The authorization session URI returned by `fetchOAuthAuthenticationTokenV2`. |
+
+Response:
+
+| **Parameter** | **Type** | **Always Returned** | **Description** |
+| --- | --- | --- | --- |
+| oAuthAuthorizationSessionResponse | Object | Yes | The OAuth authorization session query result. |
+| └ instanceId | String | Yes | The IDaaS instance ID. |
+| └ sessionId | String | Yes | The authorization session ID. |
+| └ sessionUri | String | Yes | The authorization session URI, in the format `urn:ietf:params:oauth:request_uri:{sessionId}`. |
+| └ sessionStatus | String | Yes | The session status.<br>*   Enum: `pending, callback_received, completed, failed, expired`. |
+| └ credentialProviderIdentifier | String | Yes | The business identifier of the credential provider. |
+| └ consumerType | String | Yes | The consumer type of the authentication token.<br>*   Enum: `custom, application` |
+| └ consumerId | String | Yes | The consumer ID of the authentication token. |
+| └ creatorType | String | Yes | The creator type of the authentication token.<br>*   Enum: `application` |
+| └ creatorId | String | Yes | The creator ID of the authentication token. |
+| └ authorizationUrl | String | No | The URL the end user must open to authorize. Returned when status is `pending`. |
+| └ expirationTime | Long | Yes | The session expiration time, as a Unix timestamp. |
+| └ authenticationTokenId | String | No | The associated authentication token ID. Returned when status is `completed`. |
+| └ errorCode | String | No | The error code. Returned when status is `failed`. |
+| └ errorDescription | String | No | The error description. Returned when status is `failed`. |
+
+### pollOAuthAuthenticationToken
+
+Purpose: End-to-end 3LO helper. Initiates authorization, notifies the caller of the authorization URL via callback, polls the session until completion, and returns a response containing the access token. Synchronous and blocks up to 180 seconds (polling interval fixed at 3 seconds).
+
+Request Parameters:
+
+| **Parameter** | **Type** | **Required** | **Description** |
+| --- | --- | --- | --- |
+| credentialProviderIdentifier | String | Yes | The business identifier of the credential provider. |
+| onAuthorizationUrl | Consumer<String> | Yes | Callback invoked with the authorization URL when user authorization is required. |
+| scope / forceAuthentication / customParameters | - | No | Same as `fetchOAuthAuthenticationTokenV2` (via `PollOAuthAuthenticationTokenOptions`). |
+| maxPollingRetries | Integer | No | Maximum number of polling retries, default 60. The 180-second hard limit always takes precedence (via `PollOAuthAuthenticationTokenOptions`). |
+
+Response:
+
+| **Parameter** | **Type** | **Always Returned** | **Description** |
+| --- | --- | --- | --- |
+| oAuthAuthenticationTokenResponse | Object | Yes | The OAuth authentication token response. On success this method always contains `oauthAccessTokenContent` and never returns `oauthAuthorizationSession`. The top-level token fields are the same as the response of `fetchOAuthAuthenticationTokenV2`. |
+| └ oauthAccessTokenContent | Object | Yes | The OAuth access token content. |
+| └└ accessTokenValue | String | Yes | Corresponds to the access_token in the OAuth AccessToken response.<br>*   Note: Contains sensitive information. |
+| └└ tokenType | String | Yes | The token type, usually `Bearer`. |
+| └└ scope | String | No | The authorized scope. |
 
 
 ### generateJwtAuthenticationToken
@@ -394,6 +492,167 @@ public class FetchOAuthAuthenticationTokenSample {
         // String token = pamClient.fetchOAuthAuthenticationToken("your-credential-identifier", options);
         
         System.out.println("OAuth Token: " + token);
+    }
+}
+```
+
+### Fetch OAuth Authentication Token V2 (2LO, Recommended)
+
+Use `fetchOAuthAuthenticationTokenV2` with `m2m` flow explicitly.
+
+```java
+import com.cloud_idaas.core.factory.IDaaSCredentialProviderFactory;
+import com.cloud_idaas.pam.IDaaSPamClient;
+import com.cloud_idaas.pam.domain.OAuthAuthenticationTokenResponse;
+import com.cloud_idaas.pam.domain.OAuthAuthorizationFlow;
+
+public class FetchOAuthAuthenticationTokenV2Sample {
+
+    public static void main(String[] args) {
+        // Initialize (automatically load configuration file)
+        IDaaSCredentialProviderFactory.init();
+
+        // Create PAM Client
+        IDaaSPamClient pamClient = new IDaaSPamClient();
+
+        // Fetch OAuth authentication token (2LO / M2M)
+        OAuthAuthenticationTokenResponse response = pamClient.fetchOAuthAuthenticationTokenV2(
+                "your-credential-provider-identifier", OAuthAuthorizationFlow.M2M);
+        // With optional parameters
+        // FetchOAuthAuthenticationOptions options = FetchOAuthAuthenticationOptions.builder()
+        //         .scope("your-scope")
+        //         .build();
+        // OAuthAuthenticationTokenResponse response = pamClient.fetchOAuthAuthenticationTokenV2(
+        //         "your-credential-provider-identifier", OAuthAuthorizationFlow.M2M, options);
+
+        if (response.hasOAuthAccessTokenContent()) {
+            System.out.println("Access Token: " + response.getOauthAccessTokenContent().getAccessTokenValue());
+            System.out.println("Token Type: " + response.getOauthAccessTokenContent().getTokenType());
+            System.out.println("Scope: " + response.getOauthAccessTokenContent().getScope());
+        }
+    }
+}
+```
+
+### OAuth 3LO Authorization (End-to-End, Recommended)
+
+`pollOAuthAuthenticationToken` encapsulates the full 3LO flow: initiate authorization → notify URL via callback → poll until user authorizes → fetch token. Best suited for Agent / CLI scenarios.
+
+> 3LO session APIs require a user-auth access token; below we build the PAM client via **token exchange**.
+
+```java
+import com.cloud_idaas.core.credential.IDaaSCredential;
+import com.cloud_idaas.core.domain.constants.OAuth2Constants;
+import com.cloud_idaas.core.factory.IDaaSCredentialProviderFactory;
+import com.cloud_idaas.core.implementation.StaticIDaaSCredentialProvider;
+import com.cloud_idaas.core.provider.IDaaSCredentialProvider;
+import com.cloud_idaas.core.provider.IDaaSTokenExchangeCredentialProvider;
+import com.cloud_idaas.pam.IDaaSPamClient;
+import com.cloud_idaas.pam.domain.OAuthAuthenticationTokenResponse;
+
+public class OAuth3loEndToEndSample {
+
+    public static void main(String[] args) {
+        // Initialize (automatically load configuration file)
+        IDaaSCredentialProviderFactory.init();
+
+        // Exchange for a user-auth credential
+        IDaaSTokenExchangeCredentialProvider tokenExchangeProvider = IDaaSCredentialProviderFactory.getIDaaSTokenExchangeCredentialProvider();
+        IDaaSCredential credential = tokenExchangeProvider.getCredential("your-subject-token", OAuth2Constants.ACCESS_TOKEN_TYPE, OAuth2Constants.ACCESS_TOKEN_TYPE);
+        IDaaSCredentialProvider credentialProvider = StaticIDaaSCredentialProvider.builder()
+                .setCredential(credential)
+                .build();
+        IDaaSPamClient pamClient = IDaaSPamClient.builder()
+                .credentialProvider(credentialProvider)
+                .build();
+
+        // End-to-end OAuth token fetch (blocks until authorization completes)
+        OAuthAuthenticationTokenResponse response = pamClient.pollOAuthAuthenticationToken(
+                "your-oauth-3lo-credential-provider-identifier",
+                authorizationUrl -> System.out.println("Please open this URL in a browser to authorize:\n" + authorizationUrl));
+        // With optional parameters
+        // PollOAuthAuthenticationTokenOptions options = PollOAuthAuthenticationTokenOptions.builder()
+        //         .scope("your-scope")
+        //         .forceAuthentication(true)
+        //         .maxPollingRetries(60)
+        //         .build();
+        // OAuthAuthenticationTokenResponse response = pamClient.pollOAuthAuthenticationToken(
+        //         "your-oauth-3lo-credential-provider-identifier",
+        //         authorizationUrl -> System.out.println(authorizationUrl),
+        //         options);
+
+        if (response.hasOAuthAccessTokenContent()) {
+            System.out.println("Access Token: " + response.getOauthAccessTokenContent().getAccessTokenValue());
+        }
+    }
+}
+```
+
+### OAuth 3LO Authorization (Atomic Mode)
+
+The caller orchestrates the polling loop, suitable for custom UI interactions or polling strategies.
+
+```java
+import com.cloud_idaas.core.credential.IDaaSCredential;
+import com.cloud_idaas.core.domain.constants.OAuth2Constants;
+import com.cloud_idaas.core.factory.IDaaSCredentialProviderFactory;
+import com.cloud_idaas.core.implementation.StaticIDaaSCredentialProvider;
+import com.cloud_idaas.core.provider.IDaaSCredentialProvider;
+import com.cloud_idaas.core.provider.IDaaSTokenExchangeCredentialProvider;
+import com.cloud_idaas.pam.IDaaSPamClient;
+import com.cloud_idaas.pam.domain.OAuthAuthenticationTokenResponse;
+import com.cloud_idaas.pam.domain.OAuthAuthorizationFlow;
+import com.cloud_idaas.pam.domain.OAuthAuthorizationSession;
+import com.cloud_idaas.pam.domain.OAuthAuthorizationSessionResponse;
+import com.cloud_idaas.pam.domain.PamClientConstants;
+
+public class OAuth3loAtomicSample {
+
+    public static void main(String[] args) throws InterruptedException {
+        IDaaSCredentialProviderFactory.init();
+
+        IDaaSTokenExchangeCredentialProvider tokenExchangeProvider = IDaaSCredentialProviderFactory.getIDaaSTokenExchangeCredentialProvider();
+        IDaaSCredential credential = tokenExchangeProvider.getCredential("your-subject-token", OAuth2Constants.ACCESS_TOKEN_TYPE, OAuth2Constants.ACCESS_TOKEN_TYPE);
+        IDaaSCredentialProvider credentialProvider = StaticIDaaSCredentialProvider.builder()
+                .setCredential(credential)
+                .build();
+        IDaaSPamClient pamClient = IDaaSPamClient.builder()
+                .credentialProvider(credentialProvider)
+                .build();
+
+        String credentialProviderIdentifier = "your-oauth-3lo-credential-provider-identifier";
+
+        // 1. Initiate authorization (user_federation flow)
+        OAuthAuthenticationTokenResponse response = pamClient.fetchOAuthAuthenticationTokenV2(
+                credentialProviderIdentifier, OAuthAuthorizationFlow.USER_FEDERATION);
+
+        if (response.hasOAuthAccessTokenContent()) {
+            // 2. Token already available
+            System.out.println("Access Token: " + response.getOauthAccessTokenContent().getAccessTokenValue());
+        } else {
+            // 3. User authorization required: show URL and poll session
+            OAuthAuthorizationSession session = response.getOauthAuthorizationSession();
+            System.out.println("Please open this URL in a browser to authorize:\n" + session.getAuthorizationUrl());
+
+            while (true) {
+                OAuthAuthorizationSessionResponse sessionResponse = pamClient.getOAuthAuthorizationSession(session.getSessionUri());
+                String status = sessionResponse.getSessionStatus();
+                System.out.println("Session status: " + status);
+                if (PamClientConstants.SESSION_STATUS_COMPLETED.equals(status)) {
+                    break;
+                }
+                if (PamClientConstants.SESSION_STATUS_FAILED.equals(status)
+                        || PamClientConstants.SESSION_STATUS_EXPIRED.equals(status)) {
+                    throw new RuntimeException("Authorization not completed: " + status);
+                }
+                Thread.sleep(PamClientConstants.POLLING_INTERVAL_MILLIS);
+            }
+
+            // 4. Authorization completed, fetch the token
+            OAuthAuthenticationTokenResponse finalResponse = pamClient.fetchOAuthAuthenticationTokenV2(
+                    credentialProviderIdentifier, OAuthAuthorizationFlow.USER_FEDERATION);
+            System.out.println("Access Token: " + finalResponse.getOauthAccessTokenContent().getAccessTokenValue());
+        }
     }
 }
 ```

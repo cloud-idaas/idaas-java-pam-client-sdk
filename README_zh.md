@@ -9,6 +9,7 @@
 ## 功能特性
 
 - **凭据管理**：支持获取 API Key、OAuth 认证令牌、JWT 认证令牌等凭据
+- **OAuth 2LO / 3LO**：支持 M2M（客户端凭据）与用户联合（授权码）两种授权流程，并提供端到端的 3LO 授权编排
 - **认证令牌生命周期管理**：支持生成、查询、吊销、恢复、验证认证令牌
 
 ## 环境要求
@@ -24,7 +25,7 @@
 <dependency>
     <groupId>com.cloud-idaas</groupId>
     <artifactId>idaas-java-pam-client</artifactId>
-    <version>0.0.3-beta</version>
+    <version>0.0.4-beta</version>
 </dependency>
 ```
 [最新版本](https://mvnrepository.com/artifact/com.cloud-idaas/idaas-java-pam-client)
@@ -104,6 +105,8 @@ public class Sample {
 
 ### fetchOAuthAuthenticationToken
 
+> **已废弃**：请改用 [fetchOAuthAuthenticationTokenV2](#fetchoauthauthenticationtokenv2)。该方法仅支持 2LO 且只返回 access token 字符串；为保证向后兼容，其签名与返回类型保持不变。
+
 作用：获取一个有效的OAuth认证令牌。
 
 请求入参：
@@ -118,6 +121,105 @@ public class Sample {
 | **参数名** | **类型** | **是否一定返回** | **描述**                                                        |
 | --- | --- | --- |---------------------------------------------------------------|
 | accessTokenValue | String | 是 | 对应 OAuth 协议中的 AccessToken 响应的 access_token。<br>*   注意包含有敏感信息。 |
+
+
+### fetchOAuthAuthenticationTokenV2
+
+作用：获取有效的 OAuth 认证令牌，同时覆盖 2LO（`m2m`）与 3LO（`user_federation`）两种授权流程，返回信息完整的富对象。
+> **注意**：3LO 场景需要用户身份（user-auth）的 Access Token。
+
+请求入参：
+
+| **参数名** | **类型** | **是否必填** | **描述** |
+| --- | --- | --- | --- |
+| credentialProviderIdentifier | String | 是 | 凭据提供商的业务标识。 |
+| authorizationFlow | String | 是 | OAuth 授权流程类型。<br>*   取值：`OAuthAuthorizationFlow.M2M`（`m2m`，即 2LO / client_credentials）、`OAuthAuthorizationFlow.USER_FEDERATION`（`user_federation`，即 3LO / authorization_code）。 |
+| scope | String | 否 | OAuth 协议中的 scope，多个以空格分隔。<br>*   通过 `FetchOAuthAuthenticationOptions` 传入。 |
+| forceAuthentication | Boolean | 否 | 是否强制重新授权，忽略已有有效令牌。默认 `false`。<br>*   通过 `FetchOAuthAuthenticationOptions` 传入。 |
+| customParameters | Map<String, String> | 否 | 自定义参数键值对，会附加到 OAuth 授权 URL 的 query 参数中。<br>*   例如 Google 的 `access_type=offline`、`prompt=consent`。<br>*   通过 `FetchOAuthAuthenticationOptions` 传入。 |
+
+响应：`OAuthAuthenticationTokenResponse`
+
+> `oauthAccessTokenContent` 与 `oauthAuthorizationSession` **互斥**，不会同时存在。可通过 `hasOAuthAccessTokenContent()` 与 `hasOAuthAuthorizationSession()` 判断当前场景。
+
+| **参数名** | **类型** | **是否一定返回** | **描述** |
+| --- | --- | --- | --- |
+| instanceId | String | 否 | IDaaS 实例 ID。 |
+| authenticationTokenId | String | 否 | 认证令牌 ID。 |
+| credentialProviderId | String | 否 | 凭据提供商 ID。 |
+| authenticationTokenType | String | 否 | 认证令牌类型，值为 `oauth_access_token`。 |
+| revoked | Boolean | 否 | 认证令牌是否已被吊销。 |
+| creatorType / creatorId | String | 否 | 认证令牌的创建者类型 / ID。 |
+| consumerType / consumerId | String | 否 | 认证令牌的使用者类型 / ID。 |
+| createTime / updateTime / expirationTime | Long | 否 | 创建 / 更新 / 过期时间，毫秒级 Unix 时间戳。 |
+| oauthAccessTokenContent | Object | 否 | **场景一：令牌已可用**。 |
+| └ accessTokenValue | String | 是 | access_token 值。<br>*   注意：包含敏感信息。 |
+| └ tokenType | String | 否 | token_type，通常为 `Bearer`。 |
+| └ scope | String | 否 | 授权范围。 |
+| oauthAuthorizationSession | Object | 否 | **场景二：需要用户授权**（仅 3LO）。 |
+| └ sessionId | String | 是 | 授权会话 ID。 |
+| └ sessionUri | String | 是 | 授权会话 URI，用于后续查询会话状态。 |
+| └ authorizationUrl | String | 是 | 引导用户授权的 URL，需交给终端用户在浏览器中打开。 |
+| └ sessionStatus | String | 是 | 授权会话状态，此时为 `pending`。 |
+
+### getOAuthAuthorizationSession
+
+作用：查询 OAuth 授权会话的当前状态，用于 3LO 原子模式下自行编排轮询。
+
+> **注意**：该接口要求 Bearer Token 为用户身份（user-auth）的 Access Token。
+
+请求入参：
+
+| **参数名** | **类型** | **是否必填** | **描述** |
+| --- | --- | --- | --- |
+| sessionUri | String | 是 | 授权会话 URI，来自 `fetchOAuthAuthenticationTokenV2` 返回的 `oauthAuthorizationSession.sessionUri`。 |
+
+响应：`OAuthAuthorizationSessionResponse`
+
+| **参数名** | **类型** | **是否一定返回** | **描述** |
+| --- | --- | --- | --- |
+| instanceId | String | 是 | IDaaS 实例 ID。 |
+| sessionId | String | 是 | 授权会话 ID。 |
+| sessionUri | String | 是 | 授权会话 URI。 |
+| sessionStatus | String | 是 | 会话状态。<br>*   枚举值：`pending`（等待用户授权）、`callback_received`（已接收授权码，正在换取令牌）、`completed`（授权完成）、`failed`（授权失败）、`expired`（会话已过期）。<br>*   对应常量：`PamClientConstants.SESSION_STATUS_*`。 |
+| credentialProviderIdentifier | String | 是 | 凭据提供商的业务标识。 |
+| consumerType / consumerId | String | 是 | 使用者类型 / ID。 |
+| creatorType / creatorId | String | 是 | 创建者类型 / ID。 |
+| authorizationUrl | String | 否 | 授权 URL，`sessionStatus=pending` 时返回。 |
+| expirationTime | Long | 是 | 会话过期时间，毫秒级 Unix 时间戳。 |
+| authenticationTokenId | String | 否 | 关联的认证令牌 ID，`sessionStatus=completed` 时返回。 |
+| errorCode | String | 否 | 错误码，`sessionStatus=failed` 时返回。 |
+| errorDescription | String | 否 | 错误描述，`sessionStatus=failed` 时返回。 |
+
+### pollOAuthAuthenticationToken
+
+作用：3LO 端到端方法，内部自动完成「发起授权 → 回调通知授权 URL → 轮询等待 → 获取令牌」全流程，适合 Agent / CLI 等无复杂 UI 交互的场景。
+> **注意**：该接口要求 Bearer Token 为用户身份（user-auth）的 Access Token。
+> **阻塞特性**：该方法为同步阻塞方法，轮询期间会阻塞当前线程（最长 180 秒）。如需非阻塞行为，请改用原子方法自行编排，或在独立线程中调用。
+
+请求入参：
+
+| **参数名** | **类型** | **是否必填** | **描述** |
+| --- | --- | --- | --- |
+| credentialProviderIdentifier | String | 是 | 凭据提供商的业务标识。 |
+| onAuthorizationUrl | Consumer<String> | 是 | 授权 URL 回调。当需要用户授权时，SDK 会以 `authorizationUrl` 为参数调用一次。<br>*   由调用方决定如何将 URL 传递给终端用户（如打印到控制台、返回给前端、打开系统浏览器）。<br>*   回调内部抛出的异常将**原样向上传播**，不被 SDK 包装。 |
+| scope | String | 否 | OAuth 协议中的 scope，多个以空格分隔。<br>*   通过 `PollOAuthAuthenticationTokenOptions` 传入。 |
+| forceAuthentication | Boolean | 否 | 是否强制重新授权，忽略已有有效令牌。默认 `false`。<br>*   通过 `PollOAuthAuthenticationTokenOptions` 传入。 |
+| customParameters | Map<String, String> | 否 | 自定义参数键值对，会附加到 OAuth 授权 URL 的 query 参数中。<br>*   通过 `PollOAuthAuthenticationTokenOptions` 传入。 |
+| maxPollingRetries | Integer | 否 | 最大轮询次数，默认 60。<br>*   轮询间隔固定为 3 秒（不可配置）。<br>*   内部存在 180 秒硬性超时上限：即使 `轮询间隔 × 最大次数` 超过 180 秒，也会在 180 秒后停止并抛出超时异常。<br>*   通过 `PollOAuthAuthenticationTokenOptions` 传入。 |
+
+响应：`OAuthAuthenticationTokenResponse`（结构同 `fetchOAuthAuthenticationTokenV2`）
+
+> 成功返回时结果**始终包含** `oauthAccessTokenContent`，**不会包含** `oauthAuthorizationSession`（授权逻辑已在方法内部处理完毕）。
+
+异常：
+
+| **场景** | **异常** | **错误码** |
+| --- | --- | --- |
+| 授权会话状态为 `failed` | `ClientException` | 透传服务端 `errorCode`（为空时回退 `authorization_failed`） |
+| 授权会话状态为 `expired` | `ClientException` | `authorization_session_expired` |
+| 轮询超时 / 次数用尽 | `ClientException` | `polling_timeout` |
+| 回调函数内部异常 | 原始异常 | 不包装，原样传播 |
 
 
 ### generateJwtAuthenticationToken
@@ -394,6 +496,170 @@ public class FetchOAuthAuthenticationTokenSample {
         // String token = pamClient.fetchOAuthAuthenticationToken("your-credential-identifier", options);
         
         System.out.println("OAuth Token: " + token);
+    }
+}
+```
+
+### 获取 OAuth 认证令牌（2LO，推荐）
+
+使用 `fetchOAuthAuthenticationTokenV2` 并显式指定 `m2m` 流程。
+
+```java
+import com.cloud_idaas.core.factory.IDaaSCredentialProviderFactory;
+import com.cloud_idaas.pam.IDaaSPamClient;
+import com.cloud_idaas.pam.domain.OAuthAuthenticationTokenResponse;
+import com.cloud_idaas.pam.domain.OAuthAuthorizationFlow;
+
+public class FetchOAuthAuthenticationTokenV2Sample {
+
+    public static void main(String[] args) {
+        // 初始化（自动加载配置文件）
+        IDaaSCredentialProviderFactory.init();
+
+        // 创建 PAM Client
+        IDaaSPamClient pamClient = new IDaaSPamClient();
+
+        // 获取 OAuth 认证令牌（2LO / M2M）
+        OAuthAuthenticationTokenResponse response = pamClient.fetchOAuthAuthenticationTokenV2(
+                "your-credential-provider-identifier", OAuthAuthorizationFlow.M2M);
+        // 带可选参数
+        // FetchOAuthAuthenticationOptions options = FetchOAuthAuthenticationOptions.builder()
+        //         .scope("your-scope")
+        //         .build();
+        // OAuthAuthenticationTokenResponse response = pamClient.fetchOAuthAuthenticationTokenV2(
+        //         "your-credential-provider-identifier", OAuthAuthorizationFlow.M2M, options);
+
+        if (response.hasOAuthAccessTokenContent()) {
+            System.out.println("Access Token: " + response.getOauthAccessTokenContent().getAccessTokenValue());
+            System.out.println("Token Type: " + response.getOauthAccessTokenContent().getTokenType());
+            System.out.println("Scope: " + response.getOauthAccessTokenContent().getScope());
+        }
+    }
+}
+```
+
+### OAuth 3LO 授权（端到端模式，推荐）
+
+`pollOAuthAuthenticationToken` 封装了完整的 3LO 流程：发起授权 → 通过回调通知授权 URL → 轮询等待用户授权 → 获取令牌。适合 Agent / CLI 场景。
+
+> 3LO 的会话接口要求用户身份（user-auth）令牌，因此下面通过**令牌交换**构建 PAM 客户端。
+
+```java
+import com.cloud_idaas.core.credential.IDaaSCredential;
+import com.cloud_idaas.core.domain.constants.OAuth2Constants;
+import com.cloud_idaas.core.factory.IDaaSCredentialProviderFactory;
+import com.cloud_idaas.core.implementation.StaticIDaaSCredentialProvider;
+import com.cloud_idaas.core.provider.IDaaSCredentialProvider;
+import com.cloud_idaas.core.provider.IDaaSTokenExchangeCredentialProvider;
+import com.cloud_idaas.pam.IDaaSPamClient;
+import com.cloud_idaas.pam.domain.OAuthAuthenticationTokenResponse;
+
+public class OAuth3loEndToEndSample {
+
+    public static void main(String[] args) {
+        // 初始化（自动加载配置文件）
+        IDaaSCredentialProviderFactory.init();
+
+        // 通过令牌交换获取用户身份凭据
+        IDaaSTokenExchangeCredentialProvider tokenExchangeProvider = IDaaSCredentialProviderFactory.getIDaaSTokenExchangeCredentialProvider();
+        IDaaSCredential credential = tokenExchangeProvider.getCredential("your-subject-token", OAuth2Constants.ACCESS_TOKEN_TYPE, OAuth2Constants.ACCESS_TOKEN_TYPE);
+        IDaaSCredentialProvider credentialProvider = StaticIDaaSCredentialProvider.builder()
+                .setCredential(credential)
+                .build();
+        IDaaSPamClient pamClient = IDaaSPamClient.builder()
+                .credentialProvider(credentialProvider)
+                .build();
+
+        // 端到端获取 OAuth 认证令牌（内部自动轮询等待授权完成）
+        OAuthAuthenticationTokenResponse response = pamClient.pollOAuthAuthenticationToken(
+                "your-oauth-3lo-credential-provider-identifier",
+                // 授权 URL 回调：由调用方决定如何展示给终端用户
+                authorizationUrl -> System.out.println("请在浏览器中打开以下 URL 完成授权：\n" + authorizationUrl));
+        // 带可选参数
+        // PollOAuthAuthenticationTokenOptions options = PollOAuthAuthenticationTokenOptions.builder()
+        //         .scope("your-scope")
+        //         .forceAuthentication(true)
+        //         .maxPollingRetries(60)
+        //         .build();
+        // OAuthAuthenticationTokenResponse response = pamClient.pollOAuthAuthenticationToken(
+        //         "your-oauth-3lo-credential-provider-identifier",
+        //         authorizationUrl -> System.out.println(authorizationUrl),
+        //         options);
+
+        if (response.hasOAuthAccessTokenContent()) {
+            System.out.println("Access Token: " + response.getOauthAccessTokenContent().getAccessTokenValue());
+        }
+    }
+}
+```
+
+### OAuth 3LO 授权（原子模式）
+
+调用方自行编排轮询逻辑，适合需要自定义 UI 交互或轮询策略的场景。
+
+```java
+import com.cloud_idaas.core.credential.IDaaSCredential;
+import com.cloud_idaas.core.domain.constants.OAuth2Constants;
+import com.cloud_idaas.core.factory.IDaaSCredentialProviderFactory;
+import com.cloud_idaas.core.implementation.StaticIDaaSCredentialProvider;
+import com.cloud_idaas.core.provider.IDaaSCredentialProvider;
+import com.cloud_idaas.core.provider.IDaaSTokenExchangeCredentialProvider;
+import com.cloud_idaas.pam.IDaaSPamClient;
+import com.cloud_idaas.pam.domain.OAuthAuthenticationTokenResponse;
+import com.cloud_idaas.pam.domain.OAuthAuthorizationFlow;
+import com.cloud_idaas.pam.domain.OAuthAuthorizationSession;
+import com.cloud_idaas.pam.domain.OAuthAuthorizationSessionResponse;
+import com.cloud_idaas.pam.domain.PamClientConstants;
+
+public class OAuth3loAtomicSample {
+
+    public static void main(String[] args) throws InterruptedException {
+        // 初始化（自动加载配置文件）
+        IDaaSCredentialProviderFactory.init();
+
+        // 通过令牌交换获取用户身份凭据
+        IDaaSTokenExchangeCredentialProvider tokenExchangeProvider = IDaaSCredentialProviderFactory.getIDaaSTokenExchangeCredentialProvider();
+        IDaaSCredential credential = tokenExchangeProvider.getCredential("your-subject-token", OAuth2Constants.ACCESS_TOKEN_TYPE, OAuth2Constants.ACCESS_TOKEN_TYPE);
+        IDaaSCredentialProvider credentialProvider = StaticIDaaSCredentialProvider.builder()
+                .setCredential(credential)
+                .build();
+        IDaaSPamClient pamClient = IDaaSPamClient.builder()
+                .credentialProvider(credentialProvider)
+                .build();
+
+        String credentialProviderIdentifier = "your-oauth-3lo-credential-provider-identifier";
+
+        // 1. 发起授权（user_federation 流程）
+        OAuthAuthenticationTokenResponse response = pamClient.fetchOAuthAuthenticationTokenV2(
+                credentialProviderIdentifier, OAuthAuthorizationFlow.USER_FEDERATION);
+
+        if (response.hasOAuthAccessTokenContent()) {
+            // 2. 令牌已可用，直接使用
+            System.out.println("Access Token: " + response.getOauthAccessTokenContent().getAccessTokenValue());
+        } else {
+            // 3. 需要用户授权：展示授权 URL 并轮询会话状态
+            OAuthAuthorizationSession session = response.getOauthAuthorizationSession();
+            System.out.println("请在浏览器中打开以下 URL 完成授权：\n" + session.getAuthorizationUrl());
+
+            while (true) {
+                OAuthAuthorizationSessionResponse sessionResponse = pamClient.getOAuthAuthorizationSession(session.getSessionUri());
+                String status = sessionResponse.getSessionStatus();
+                System.out.println("授权会话状态: " + status);
+                if (PamClientConstants.SESSION_STATUS_COMPLETED.equals(status)) {
+                    break;
+                }
+                if (PamClientConstants.SESSION_STATUS_FAILED.equals(status)
+                        || PamClientConstants.SESSION_STATUS_EXPIRED.equals(status)) {
+                    throw new RuntimeException("授权未完成: " + status);
+                }
+                Thread.sleep(PamClientConstants.POLLING_INTERVAL_MILLIS);
+            }
+
+            // 4. 授权完成，再次获取令牌
+            OAuthAuthenticationTokenResponse finalResponse = pamClient.fetchOAuthAuthenticationTokenV2(
+                    credentialProviderIdentifier, OAuthAuthorizationFlow.USER_FEDERATION);
+            System.out.println("Access Token: " + finalResponse.getOauthAccessTokenContent().getAccessTokenValue());
+        }
     }
 }
 ```

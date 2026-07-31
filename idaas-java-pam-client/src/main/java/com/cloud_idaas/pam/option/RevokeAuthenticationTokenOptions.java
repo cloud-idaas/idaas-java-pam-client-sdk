@@ -10,7 +10,10 @@ public class RevokeAuthenticationTokenOptions implements Serializable {
 
     private static final long serialVersionUID = 2428615710709901395L;
 
-    private final String tokenTypeHint;
+    private String tokenTypeHint;
+
+    public RevokeAuthenticationTokenOptions() {
+    }
 
     private RevokeAuthenticationTokenOptions(Builder builder) {
         this.tokenTypeHint = builder.tokenTypeHint;
@@ -23,6 +26,15 @@ public class RevokeAuthenticationTokenOptions implements Serializable {
      */
     public String getTokenTypeHint() {
         return tokenTypeHint;
+    }
+
+    /**
+     * Sets the token type hint.
+     *
+     * @param tokenTypeHint the token type hint
+     */
+    public void setTokenTypeHint(String tokenTypeHint) {
+        this.tokenTypeHint = tokenTypeHint;
     }
 
     /**

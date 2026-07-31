@@ -10,10 +10,13 @@ public class ListAuthenticationTokensOptions implements Serializable {
 
     private static final long serialVersionUID = 2490097827129125349L;
 
-    private final String nextToken;
-    private final Long maxResults;
-    private final Boolean revoked;
-    private final Boolean expired;
+    private String nextToken;
+    private Long maxResults;
+    private Boolean revoked;
+    private Boolean expired;
+
+    public ListAuthenticationTokensOptions() {
+    }
 
     private ListAuthenticationTokensOptions(Builder builder) {
         this.nextToken = builder.nextToken;
@@ -26,16 +29,32 @@ public class ListAuthenticationTokensOptions implements Serializable {
         return nextToken;
     }
 
+    public void setNextToken(String nextToken) {
+        this.nextToken = nextToken;
+    }
+
     public Long getMaxResults() {
         return maxResults;
+    }
+
+    public void setMaxResults(Long maxResults) {
+        this.maxResults = maxResults;
     }
 
     public Boolean getRevoked() {
         return revoked;
     }
 
+    public void setRevoked(Boolean revoked) {
+        this.revoked = revoked;
+    }
+
     public Boolean getExpired() {
         return expired;
+    }
+
+    public void setExpired(Boolean expired) {
+        this.expired = expired;
     }
 
     /**

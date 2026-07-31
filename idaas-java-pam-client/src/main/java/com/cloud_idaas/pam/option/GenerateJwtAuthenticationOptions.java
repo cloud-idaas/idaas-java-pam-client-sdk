@@ -12,10 +12,13 @@ public class GenerateJwtAuthenticationOptions implements Serializable {
 
     private static final long serialVersionUID = 2166506472654749246L;
 
-    private final String issuer;
-    private final Map<String, Object> customClaims;
-    private final Integer expiration;
-    private final Boolean includeDerivedShortToken;
+    private String issuer;
+    private Map<String, Object> customClaims;
+    private Integer expiration;
+    private Boolean includeDerivedShortToken;
+
+    public GenerateJwtAuthenticationOptions() {
+    }
 
     private GenerateJwtAuthenticationOptions(Builder builder) {
         this.issuer = builder.issuer;
@@ -28,16 +31,32 @@ public class GenerateJwtAuthenticationOptions implements Serializable {
         return issuer;
     }
 
+    public void setIssuer(String issuer) {
+        this.issuer = issuer;
+    }
+
     public Map<String, Object> getCustomClaims() {
         return customClaims;
+    }
+
+    public void setCustomClaims(Map<String, Object> customClaims) {
+        this.customClaims = customClaims != null ? new HashMap<>(customClaims) : null;
     }
 
     public Integer getExpiration() {
         return expiration;
     }
 
+    public void setExpiration(Integer expiration) {
+        this.expiration = expiration;
+    }
+
     public Boolean getIncludeDerivedShortToken() {
         return includeDerivedShortToken;
+    }
+
+    public void setIncludeDerivedShortToken(Boolean includeDerivedShortToken) {
+        this.includeDerivedShortToken = includeDerivedShortToken;
     }
 
     /**
